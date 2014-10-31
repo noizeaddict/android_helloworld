@@ -34,6 +34,21 @@ var app = {
     // function, we must explicitly call 'app.receivedEvent(...);'
     onDeviceReady: function() {
         app.receivedEvent('deviceready');
+
+        /**
+        // カメラへのオプション
+        var options = {
+        	quality: 50,
+        	destinationType: navigator.camera.DestinationType.FILE_URI
+        };
+        
+        // カメラを起動する
+        navigator.camera.getPicture(function(imageData) {
+        	alert(imageData);
+        }, function() {
+        	alert('fail');
+        }, options);
+        **/
     },
     // Update DOM on a Received Event
     receivedEvent: function(id) {

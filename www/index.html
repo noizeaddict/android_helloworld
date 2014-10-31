@@ -1,41 +1,234 @@
-<!DOCTYPE html>
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
+<!DOCTYPE HTML>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="msapplication-tap-highlight" content="no" />
-        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
-        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
-        <link rel="stylesheet" type="text/css" href="css/index.css" />
-        <title>Hello World</title>
-    </head>
-    <body>
-        <div class="app">
-            <h1>Apache Cordova</h1>
-            <div id="deviceready" class="blink">
-                <p class="event listening">Connecting to Device</p>
-                <p class="event received">Device is Ready</p>
-            </div>
-        </div>
-        <script type="text/javascript" src="cordova.js"></script>
-        <script type="text/javascript" src="js/index.js"></script>
-    </body>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no">
+     
+    <!-- monaca plugin loader -->
+<!-- 
+    <script src="components/loader.js"></script>    
+    <link rel="stylesheet" href="components/loader.css">
+    <link rel="stylesheet" href="css/onsen-css-components-default.css">
+ -->
+
+	<link rel="stylesheet" href="onsenui/css/onsenui.css">
+	<link rel="stylesheet" href="onsenui/css/onsen-css-components.css">
+	<script src="onsenui/js/angular/angular.js"></script>
+	<script src="onsenui/js/onsenui.js"></script>
+
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/timeline.css">	
+	
+    <!-- web icon font -->
+    <link href="http://netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script src="js/jsoauth.js"></script>
+    <script src="js/underscore.js"></script>
+    <script src="http://192.168.11.2:8080/target/target-script-min.js#anonymous"></script>
+    <script>
+      // jQuery(function(){
+      // URL to be redirected after the OAuth authentication is done
+      
+      ons.bootstrap();
+      
+      var callbackUrl = "http://ec2-54-69-50-54.us-west-2.compute.amazonaws.com/twitter_callback.php";
+      
+      // jsOAuth object
+      var oauth = OAuth({
+        consumerKey: "LqipvGRnrlabAYY6M9OOJ2rL0", // REPLACE HERE TO YOUR CONSUMER KEY or API KEY
+        consumerSecret: "9luvyZozyaQ224ZbeSghW6Abc3vsO0ZSTXTTJCjPx0yVCx43vK", // REPLACE HERE TO YOUR CONSUMER SECRET OR API SECRET
+        callbackUrl: callbackUrl,
+        requestTokenUrl: "https://api.twitter.com/oauth/request_token",
+        authorizationUrl: " https://api.twitter.com/oauth/authorize",
+        accessTokenUrl: "https://api.twitter.com/oauth/access_token"
+      });
+      
+      // Get oAuth Request Token and display authentication window (3-legged request)
+      function connect() {
+    	  console.log('start connect');
+          oauth.fetchRequestToken(function (url) {
+            console.log("Opening Request Token URL: " + url);
+            showAuthWindow(url);
+          }, function (data) {
+            console.log(JSON.stringify(data));
+          });
+      }
+     
+      // Display Twitter authentication page.
+      // When the user logs in, obtain a verifier and get Access Token
+      function showAuthWindow(url) {
+    	var browser = window.open(url, '_blank', 'location=yes');
+        browser.addEventListener('loadstart', function(event) {
+          if (event.url.indexOf(callbackUrl) >= 0) {
+            event.url.match(/oauth_verifier=([a-zA-Z0-9]+)/);
+            oauth.setVerifier(RegExp.$1);
+			
+            oauth.fetchAccessToken(function (data) {
+//            	console.log(oauth.getAccessToken());
+//            	console.log(oauth.getAccessTokenKey());
+//            	console.log(oauth.getAccessTokenSecret());
+              localStorage.setItem('twitter_access_token', JSON.stringify(oauth.getAccessToken()));
+              getTwits();
+              browser.close();
+            }, function (data) {
+              console.log(JSON.stringify(data));
+            });
+          }
+        });
+        
+      }
+      
+      // Call API and get a specific user's timeline
+      function getTwits(timeline_type, display_id) {
+   	    console.log('start get twist:' + timeline_type + ':' + display_id);
+   	 	//$('#button_list').hide();
+        var twitter_access_token = JSON.parse(localStorage.getItem('twitter_access_token'));
+        if(twitter_access_token) {
+        	oauth.setAccessToken(twitter_access_token[0], twitter_access_token[1]);
+        }else{
+        	connect();
+        }
+        
+        //oauth.getJSON('https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=noize_addict&count=20',
+        oauth.getJSON('https://api.twitter.com/1.1/statuses/' + timeline_type + '.json?count=20',
+        function(data) {
+          showTwits(data, display_id);
+        }, function(data){
+          console.log(JSON.stringify(data));
+          connect();
+        });
+      }
+      
+      // Display twit information. Uses underscore.js for templating
+      function showTwits(data, display_id) {
+    	console.log('start show twist:' + display_id);
+    	//console.log(JSON.stringify(data));
+        var i;
+        var template = _.template(document.getElementById("item-list-item").innerHTML);
+        _.each(data, function(item) {
+          document.getElementById(display_id).innerHTML += template(item);
+          //$("#button_list-list").append(template(item));
+        });
+      }
+
+      //});
+    </script>
+  </head>
+  <body>
+	<ons-tabbar var="myTabbar">
+	  <ons-tab page="home.html" label="Home" icon="ion-home" active="true"></ons-tab>
+	  <ons-tab page="mention.html" label="Comments" icon="ion-chatbox-working"></ons-tab>
+	  <ons-tab page="tags.html" label="Tags" icon="ion-ios7-pricetag"></ons-tab>
+	  <ons-tab page="settings.html" label="Settings" icon="ion-ios7-cog"></ons-tab>
+	</ons-tabbar>
+
+	<ons-template id="home.html">
+		<ons-page>
+	        <ons-toolbar>
+	          <div class="left">
+	            <ons-toolbar-button>
+	              <ons-icon icon="ion-compose" fixed-width="false" style="font-size: 26px; vertical-align: -4px"></ons-icon>
+	            </ons-toolbar-button>
+	          </div>
+	          <div class="center">
+	            Home
+	          </div>
+	          <div class="right">
+	            <ons-toolbar-button>
+	              <ons-icon icon="ion-ios7-search-strong" fixed-width="false" style="font-size: 26px; vertical-align: -4px;"></ons-icon>
+	            </ons-toolbar-button>
+	          </div>
+	        </ons-toolbar>
+	        
+	        <ons-list class="timeline" modifier="inset" id="home_list">
+	        </ons-list>
+	
+			<div id="button_list">
+		        <ons-button modifier="large" onclick="getTwits('home_timeline', 'home_list');">
+		            Get Timeline
+		        </ons-button>
+	        </div>
+        </ons-page>
+	</ons-template>
+
+	<ons-template id="mention.html">
+	  <ons-page>
+		  <ons-toolbar>
+		    <div class="center">Mention</div>
+		  </ons-toolbar>
+		    
+	      <ons-list class="timeline" modifier="inset" id="mention_list">
+	      </ons-list>
+	
+		  <div id="button_list_mention">
+		      <ons-button modifier="large" onclick="getTwits('mentions_timeline', 'mention_list');">
+		          Get Timeline
+		      </ons-button>
+	      </div>
+      </ons-page>
+	</ons-template>
+	
+	<ons-template id="tags.html">
+	  <ons-page>
+		  <ons-toolbar>
+		    <div class="center">Tags</div>
+		  </ons-toolbar>
+		  
+		  <p style="padding-top: 100px; color: #999; text-align: center">Page Contents</p>
+	  </ons-page>
+	</ons-template>
+	
+	<ons-template id="feed.html">
+	  <ons-page>
+		  <ons-toolbar>
+		    <div class="center">Feed</div>
+		  </ons-toolbar>
+		  
+		  <p style="padding-top: 100px; color: #999; text-align: center">Page Contents</p>
+	  </ons-page>
+	</ons-template>
+	
+	<ons-template id="settings.html">
+	  <ons-page>
+		  <ons-toolbar>
+		    <div class="center">Settings</div>
+		  </ons-toolbar>
+		  
+		  <p style="padding-top: 100px; color: #999; text-align: center">Page Contents</p>
+	  </ons-page>
+	</ons-template>
+
+
+  </body>
+  
+		<!-- using micro-templating trick -->
+		<script type="text/template" id="item-list-item">
+          <ons-list-item class="timeline-li" modifier="tappable">
+            <ons-row>
+              <ons-col width="50px">
+                <img src="<%=user.profile_image_url%>" class="timeline-image">
+              </ons-col>
+
+              <ons-col>
+                <div class="timeline-date">3m</div>
+                <div class="timline-from">
+                  <span class="timeline-name"><%=user.name%></span>
+                  <span class="timeline-id">@<%=user.screen_name%></span>
+                </div>
+
+                <div class="timeline-message">
+                  <%=text%>
+                </div>
+              </ons-col>
+            </ons-row>
+          </ons-list-item>
+
+  <script>
+    // Just to add more top padding for iOS new UI
+    if (/(iPad|iPhone|iPod)/g.test(navigator.userAgent)) {
+      document.getElementsByClassName("navigation-bar")[0].style.paddingTop = "20px";
+      document.getElementsByClassName("navigation-bar")[0].style.height = "64px";
+      document.getElementsByClassName("scroll-area")[0].style.paddingTop = "20px";
+    }
+  </script>
 </html>
